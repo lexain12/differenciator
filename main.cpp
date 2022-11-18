@@ -218,7 +218,7 @@ void makeGraph (Tree* tree)
     fclose(GraphFilePtr);
     static int picVersion = 0;
 
-    char buf[MAXCMPSIZE] = "";
+    char buf[MAXCMDSIZE] = "";
     sprintf(buf, "dot -Tsvg -Gcharset=latin1 GraphFile.txt > src/pic%d.svg", picVersion);
     picVersion++;
 
@@ -422,18 +422,35 @@ void treePrint (const Node* node, const int isPrint, FILE* const fileToPrint)
                     break;
 
                 case OP_SIN:
-                    fprintf (fileToPrint, "\\sin{");
+                    fprintf (fileToPrint, "\\sin{(");
+
+                    isPrintR = compareOperation (node, node->right);
+                    treePrint (node->right, isPrintR, fileToPrint);
+
+                    fprintf (fileToPrint, ")}");
+                    break;
+                case OP_COS:
+                    fprintf (fileToPrint, "\\cos{(");
+
+                    isPrintR = compareOperation (node, node->right);
+                    treePrint (node->right, isPrintR, fileToPrint);
+
+                    fprintf (fileToPrint, ")}");
+                    break;
+
+                case OP_LN:
+                    fprintf (fileToPrint, "\\ln{");
 
                     isPrintR = compareOperation (node, node->right);
                     treePrint (node->right, isPrintR, fileToPrint);
 
                     fprintf (fileToPrint, "}");
                     break;
-                case OP_COS:
-                    fprintf (fileToPrint, "\\cos{");
 
-                    isPrintR = compareOperation (node, node->right);
-                    treePrint (node->right, isPrintR, fileToPrint);
+                case OP_LOG:
+                    fprintf (fileToPrint, "\\log_{");
+
+                    printOperation (node, "}{", fileToPrint);
 
                     fprintf (fileToPrint, "}");
                     break;
@@ -459,6 +476,24 @@ void treePrint (const Node* node, const int isPrint, FILE* const fileToPrint)
     return;
 }
 
+int findInTree (Node* node, const char* dataToFind)
+{
+    if (node->type == Var_t && strcmp(node->varValue, dataToFind) == 0)
+        return 1;
+
+    else if (node->left == nullptr && node->right == nullptr)
+        return 0;
+
+    if (findInTree (node->left, dataToFind))
+        return 1;
+
+    else if (findInTree (node->right, dataToFind))
+        return 1;
+    
+    else
+        return 0;
+}
+
 #undef dumpprint
 
 #define createNum(NUM) createNode(Num_t, UnknownOp, NUM, nullptr, nullptr, nullptr)
@@ -473,6 +508,8 @@ void treePrint (const Node* node, const int isPrint, FILE* const fileToPrint)
 #define POW(left, right) createNode(OP_t, OP_POW, 0, nullptr, left, right)
 #define COS(right) createNode(      OP_t, OP_COS, 0, nullptr, nullptr, right)
 #define SIN(right) createNode(      OP_t, OP_SIN, 0, nullptr, nullptr, right)
+#define LOG(left, right) createNode(OP_t, OP_LOG, 0, nullptr, left, right)
+#define LN(right) createNode(       OP_t, OP_LN,  0, nullptr, nullptr, right)
 
 Node* diff (const Node* node)
 {
@@ -508,13 +545,32 @@ Node* diff (const Node* node)
                     return DIV (SUB (MUL (dL, cR), MUL (cL, dR)), MUL (cR, cR));
 
                 case OP_POW:
-                    return MUL (dL, POW (cL, SUB (cR, createNum(1))));
+                    if (findInTree (node->right, "x") && findInTree(node->left, "x"))
+                    {
+                        return MUL (POW (cL, cR), diff (MUL (LN (cL), cR)));
+                    }
+                    else if (findInTree (node->right, "x"))
+                    {
+                        return MUL (LN (cL), MUL (POW (cL, cR), dR));
+                    }
+                    else if (findInTree (node->left, "x"))
+                    {
+                        return MUL (cR, POW (cL, SUB (cR, createNum(1))));
+                    }
+                    else 
+                        return createNum(pow (node->left->numValue, node->right->numValue));
 
-                case OP_COS:
+                case OP_COS: 
                     return MUL (dR, MUL (createNum (-1), SIN (cR)));
 
                 case OP_SIN:
                     return MUL (dR, COS (cR));
+
+                case OP_LN:
+                    return DIV (createNum (1), cR);
+
+                case OP_LOG:
+                    return DIV (dR, MUL (cR, LN (cL)));
             }
             break;
 
@@ -523,9 +579,50 @@ Node* diff (const Node* node)
     }
 }
 
-int main ()
+int nodeEquals (Node* node, double val)
 {
-    
+    if (node->type != Num_t) return 0;
+
+    if (fabs (node->numValue - val) < EPS)
+        return 1;
+    else
+        return 0;
+}
+
+#define OP_is(op) (node->type == OP_t && node->opValue == op)
+#define IS_VAL(side, val) (
+
+void makeEasier (Node* node)
+{
+}
+
+#define laprint(...) fprintf (fileToPrint, __VA_ARGS__)
+void latexBegin (FILE* fileToPrint)
+{
+    laprint ("\\documentclass{article}\n");
+    laprint ("\\usepackage[utf8]{inputenc}\n");
+    laprint ("\\title{11}\n");
+    laprint ("\\author{Витя Тяжелков}\n");
+    laprint ("\\date{November 2022}\n");
+    laprint ("\\begin{document}\n");
+}
+
+void latexEnd (FILE* fileToPrint)
+{
+    laprint ("\\end{document}\n");
+}
+
+void latexCompile ()
+{
+    char cmd[MAXCMDSIZE] = "";
+    sprintf (cmd, "pdflatex %s", LatexFileName);
+    printf ("%s\n", cmd);
+    system (cmd);
+}
+#undef laprint
+
+int main (int argc, char* argv[])
+{
     Tree tree = {};
     treeCtor (&tree);
 
@@ -536,17 +633,36 @@ int main ()
     
     treeDump (&tree, "Graphic dump, called by graphic mode\n");
 
-    Tree tree1 = {};
-    treeCtor (&tree1);
+    Tree tree1 = {}; 
+    treeCtor (&tree1); 
 
-    tree1.root = diff (tree.root);
+    if (argc > 1)
+    {
+        fprintf (stderr, "sanya daun\n");
+        for (size_t index = 0; index < ((char) *(argv[1])) - 48; ++index)
+        {
+            tree1.root = diff (tree.root);
+            tree.root  = tree1.root;
+        }
+    }
+    else
+    {
+        tree1.root = diff (tree.root);
+    }
+
     treeDump (&tree1, "hey\n");
     fclose (DBFileptr);
 
-    FILE* overleaf = fopen ("overleaf.txt", "w");
+    FILE* overleaf = fopen (LatexFileName, "w");
+    latexBegin (overleaf);
     assert (overleaf != nullptr);
 
+    fprintf (overleaf, "$");
     treePrint (tree1.root, 0, overleaf);
+    fprintf (overleaf, "$\n");
 
+    latexEnd (overleaf);
     fclose (overleaf);
+
+    latexCompile ();
 }

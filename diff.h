@@ -2,9 +2,12 @@
 
 const char   GraphFile[20] = "GraphFile.txt";
 const size_t MAXDATASIZE   = 10;
-const size_t MAXCMPSIZE    = 100;
+const size_t MAXCMDSIZE    = 100;
 const char SPEAKFILE[40]   = "speakFile.txt";
 const char* ShortCMD       = "+-k*/^csln";
+
+const char* LatexFileName  = "latex.tex";
+const double EPS           = 1e-5;
 
 enum Errors
 {
@@ -72,4 +75,6 @@ void  treeDump         (Tree* tree,       const char* str, ...);
 int   findInTree       (Node* node,       const char* dataToFind);
 void  treePrint        (const Node* node);
 Node* treeParse        (Node* node,       FILE* DBFileptr);
+void latexBegin        (FILE* fileToPrint);
+void latexEnd          (FILE* fileToPrint);
 
