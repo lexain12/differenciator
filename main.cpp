@@ -327,6 +327,7 @@ void treeGraph (const Node* node, FILE* GraphFilePtr)
                 break;
 
             default:
+                fprintf (stderr, "%d\n", node->left->type);
                 assert (0);
         }
         dumpprint (" \"];\n");
@@ -360,7 +361,9 @@ void treeGraph (const Node* node, FILE* GraphFilePtr)
                 break;
 
             default:
+                fprintf (stderr, "%d\n", node->right->type);
                 assert (0);
+
         }
         dumpprint (" \"];\n");
 
@@ -559,7 +562,8 @@ void treePrint (const Node* node, const int isPrint, FILE* const fileToPrint)
 
 int findInTree (Node* node, const char* dataToFind)
 {
-    assert (node       != nullptr);
+    if (!node) return 0;
+
     assert (dataToFind != nullptr);
 
     if (node->type == Var_t && strcmp(node->varName, dataToFind) == 0)
@@ -719,6 +723,8 @@ Node* makeEasier (Node* node, int* isChanged)
     {
         nodeDtor (node->right);
         nodeDtor (node->left);
+        node->left = nullptr;
+        node->right = nullptr;
         *isChanged = 1;
         return createNum (0);
     }
@@ -726,6 +732,7 @@ Node* makeEasier (Node* node, int* isChanged)
     else if ((OP_is (MUL) || OP_is (POW) || OP_is (DIV)) && IS_VAL (right, 1))
     {
         nodeDtor (node->right);
+        node->right = nullptr;
         *isChanged = 1;
         return cL; 
     }
@@ -733,6 +740,7 @@ Node* makeEasier (Node* node, int* isChanged)
     else if ((OP_is (MUL) || OP_is (POW)) && IS_VAL (left, 1))
     {
         nodeDtor (node->left);
+        node->left = nullptr;
         *isChanged = 1;
         return cR;
     }
@@ -741,6 +749,8 @@ Node* makeEasier (Node* node, int* isChanged)
     {
         nodeDtor (node->right);
         nodeDtor (node->left);
+        node->left = nullptr;
+        node->right = nullptr;
         *isChanged = 1;
         return createNum (1);
     }
@@ -748,6 +758,7 @@ Node* makeEasier (Node* node, int* isChanged)
     else if ((OP_is (ADD) || OP_is(SUB)) && IS_VAL (left, 0))
     {
         nodeDtor (node->left);
+        node->left = nullptr;
         *isChanged = 1;
         return cR;
     }
@@ -755,11 +766,12 @@ Node* makeEasier (Node* node, int* isChanged)
     else if ((OP_is (ADD) || OP_is(SUB)) && IS_VAL (right, 0))
     {
         nodeDtor (node->right);
+        node->right = nullptr;
         *isChanged = 1;
         return cL;
     }
 
-    return node;
+    return treeCpy (node);
 }
 
 #define countOP(sign) (node->left->numValue sign node->right->numValue)
@@ -781,6 +793,8 @@ Node* countConstExpr (Node* node, int* isChanged)
                             Node* rtn = createNum (countOP(+));
                             nodeDtor (node->right);
                             nodeDtor (node->left);
+                            node->left = nullptr;
+                            node->right = nullptr;
 
                             return rtn;
                         }
@@ -790,6 +804,8 @@ Node* countConstExpr (Node* node, int* isChanged)
                             Node* rtn = createNum (countOP(*));
                             nodeDtor (node->right);
                             nodeDtor (node->left);
+                            node->left = nullptr;
+                            node->right = nullptr;
 
                             return rtn;
                         }
@@ -799,6 +815,8 @@ Node* countConstExpr (Node* node, int* isChanged)
                             Node* rtn = createNum (countOP(-));
                             nodeDtor (node->right);
                             nodeDtor (node->left);
+                            node->left = nullptr;
+                            node->right = nullptr;
                             
                             return rtn;
                         }
@@ -808,6 +826,8 @@ Node* countConstExpr (Node* node, int* isChanged)
                             Node* rtn = createNum (countOP(/));
                             nodeDtor (node->right);
                             nodeDtor (node->left);
+                            node->left = nullptr;
+                            node->right = nullptr;
 
                             return rtn;
                         }
@@ -817,6 +837,8 @@ Node* countConstExpr (Node* node, int* isChanged)
                             Node* rtn = createNum (pow(node->left->numValue, node->right->numValue));
                             nodeDtor (node->right);
                             nodeDtor (node->left);
+                            node->left = nullptr;
+                            node->right = nullptr;
 
                             return rtn;
                         }
@@ -841,6 +863,8 @@ Node* countConstExpr (Node* node, int* isChanged)
                         {
                             Node* rtn = createNum (cos (node->right->numValue));
                             nodeDtor (node->right);
+                            node->right = nullptr;
+
                             return rtn;
                         }
                     
@@ -848,6 +872,7 @@ Node* countConstExpr (Node* node, int* isChanged)
                         {
                             Node* rtn = createNum (sin (node->right->numValue));
                             nodeDtor (node->right);
+                            node->left = nullptr;
                             return rtn;
                         }
                 }
@@ -862,13 +887,14 @@ Node* countConstExpr (Node* node, int* isChanged)
     if (node->left)
         node->left = countConstExpr (node->left, isChanged);
     
-    return node;
+    return treeCpy (node);
 }
 #undef countOP
 
 Node* optimizeTree (Node* node)
 {
     assert (node != nullptr);
+    Node* rtnNode = nodeCtor; 
 
     int isChanged        = 0;
     int noChangesCounter = 0;
@@ -900,8 +926,7 @@ Node* optimizeTree (Node* node)
 
 
 
-double findVar (const char* varName)
-{
+double findVar (const char* varName) {
     assert (varName  != nullptr);
 
     for (size_t index = 0; index < VarTableSize; ++index)
@@ -950,22 +975,17 @@ void fillTable ()
     }
 }
 
-Node* countFunctionInPoint (Node* node)
+Node* countFunction (Node* node)
 {
-    Tree tmptree = {};
-    treeCtor (&tmptree);
-    tmptree.root = node;
-
     insertVar (node);  
-    treeDump (&tmptree, "HEy\n");
 
     return optimizeTree (node);
 }
 
-Node* countDerivativeInPoint (Node* node)
+Node* countFunctionInPoint (Node* node)
 {
     fillTable ();
-    countFunctionInPoint (node);
+    countFunction (node);
 
     return optimizeTree (node);
 }
@@ -997,15 +1017,17 @@ void latexCompile ()
 }
 #undef laprint
 
-Node* countDerivative (Node* initialNode, Node* rtnNode, size_t order)
+Node* countDerivative (Node* initialNode, size_t order)
 {
     Node* tmpNode = nodeCtor ();
+    Node* rtnNode = treeCpy (initialNode);
 
     if (order == 0) 
-        return initialNode;
+        return rtnNode;
     else
     {
         rtnNode = diff (initialNode);
+        rtnNode = optimizeTree (rtnNode);
         tmpNode = rtnNode;
     }
 
@@ -1035,6 +1057,25 @@ int factorial (int num)
     return rtn;
 }
 
+void McLaurenSeries (Node* function, size_t order, FILE* fileToPrint)
+{
+    printf ("McLauren series:\n");
+    fillTable ();
+
+    fprintf (fileToPrint, "$");
+
+    for (size_t index = 0; index <= order; ++index)
+    {
+        fprintf (fileToPrint, "x^{%d} \\cdot \\frac{", index);
+        treePrint (countFunction (countDerivative (function, index)), 0, fileToPrint);
+        fprintf (fileToPrint, "}{");
+        fprintf (fileToPrint, "%d} + ", factorial (index));
+    }
+
+    fprintf (fileToPrint, "o(x^{%d})", order);
+    fprintf (fileToPrint, "$\n\n");
+}
+
 void tableDump ()
 {
     for (size_t index = 0; index < VarTableSize; ++index)
@@ -1043,10 +1084,56 @@ void tableDump ()
     }
 }
 
+void changeVarTable (char* varName, double varValue)
+{
+    for (size_t index = 0; index < VarTableSize; ++index)
+    {
+        if (VarTable[index].varName == nullptr)
+        {
+            VarTable[index].varName = varName;
+            VarTable[index].varValue = varValue;
+            return;
+        }
+
+        if (strcmp (VarTable[index].varName, varName) == 0)
+        {
+            VarTable[index].varValue = varValue;
+            return;
+        }
+    }
+}
+
+void drawPlot (int minX, int maxX, Node* function, char* fileName)
+{
+    FILE* fileptr = fopen (fileName, "w");
+    assert (fileptr != nullptr);
+
+    Tree tree = {};
+    treeCtor (&tree);
+    tree.root = function;
+    treeDump (&tree, "adsff\n");
+
+    fillTable ();
+
+    Node* tmpNode = nodeCtor ();
+
+   for (int index = minX; index < maxX; ++index)
+   {
+       changeVarTable ("x", index); 
+
+       tmpNode = countFunction (function);
+       break;
+       
+       //fprintf (fileptr, "%d\n", tmpNode->numValue);
+   }
+}
+
 int main ()
 {
     varTablePoison();
+    changeVarTable ("x", 4); 
     tableDump ();
+
     Tree tree = {};
     treeCtor (&tree);
 
@@ -1061,19 +1148,26 @@ int main ()
     size_t numberOfDiff = 0;
     scanf ("%lu", &numberOfDiff);
 
-    tree1.root = countDerivative (tree.root, tree1.root, numberOfDiff);
+    tree1.root = countDerivative (tree.root, numberOfDiff);
+
+    treeDump (&tree1, "adsf\n");
 
     fclose (DBFileptr);
+    drawPlot (-4, 6, tree.root, "plot.txt");
 
     FILE* overleaf = fopen (LatexFileName, "w");
     latexBegin (overleaf);
     assert (overleaf != nullptr);
 
+    treeDump (&tree, "ehe\n");
+    McLaurenSeries (tree.root, numberOfDiff, overleaf);
+
     fprintf (overleaf, "$");
     treePrint (tree1.root, 0, overleaf);
     fprintf (overleaf, "$\n\n очевидно, что это равняется: \n\n");
 
-    tree1.root = countDerivativeInPoint (tree1.root);
+    fillTable ();
+    tree1.root = countFunction (tree1.root);
 
     fprintf (overleaf, "$");
     treePrint (tree1.root, 0, overleaf);
