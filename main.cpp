@@ -894,7 +894,8 @@ Node* countConstExpr (Node* node, int* isChanged)
 Node* optimizeTree (Node* node)
 {
     assert (node != nullptr);
-    Node* rtnNode = nodeCtor; 
+    Node* rtnNode = nodeCtor (); 
+    rtnNode = node;
 
     int isChanged        = 0;
     int noChangesCounter = 0;
@@ -903,7 +904,7 @@ Node* optimizeTree (Node* node)
     {
         isChanged = 0;
 
-        node = countConstExpr (node, &isChanged);
+        rtnNode = countConstExpr (rtnNode, &isChanged);
 
         if (isChanged == 0)
             ++noChangesCounter;
@@ -912,7 +913,7 @@ Node* optimizeTree (Node* node)
 
         isChanged = 0;
 
-        node = makeEasier (node, &isChanged);
+        rtnNode = makeEasier (rtnNode, &isChanged);
 
         if (isChanged == 0)
             ++noChangesCounter;
@@ -920,7 +921,7 @@ Node* optimizeTree (Node* node)
             noChangesCounter = 0;
 
         if (noChangesCounter > 50)
-            return node;
+            return rtnNode;
     }
 }
 
@@ -1108,23 +1109,17 @@ void drawPlot (int minX, int maxX, Node* function, char* fileName)
     FILE* fileptr = fopen (fileName, "w");
     assert (fileptr != nullptr);
 
-    Tree tree = {};
-    treeCtor (&tree);
-    tree.root = function;
-    treeDump (&tree, "adsff\n");
-
     fillTable ();
-
     Node* tmpNode = nodeCtor ();
 
    for (int index = minX; index < maxX; ++index)
    {
+       tmpNode = treeCpy (function);
        changeVarTable ("x", index); 
 
-       tmpNode = countFunction (function);
-       break;
+       tmpNode = countFunction (tmpNode);
        
-       //fprintf (fileptr, "%d\n", tmpNode->numValue);
+       fprintf (fileptr, "%d %lf\n", index, tmpNode->numValue);
    }
 }
 
@@ -1153,6 +1148,7 @@ int main ()
     treeDump (&tree1, "adsf\n");
 
     fclose (DBFileptr);
+    treeDump (&tree, "ehe\n");
     drawPlot (-4, 6, tree.root, "plot.txt");
 
     FILE* overleaf = fopen (LatexFileName, "w");
