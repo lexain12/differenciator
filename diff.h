@@ -5,9 +5,11 @@ const size_t MAXDATASIZE   = 10;
 const size_t MAXCMDSIZE    = 100;
 const char SPEAKFILE[40]   = "speakFile.txt";
 const char* ShortCMD       = "+-k*/^csln";
+const double EPS           = 10e-7;
+const double VarPoison     = 10e7;
 
+const size_t VarTableSize  = 10;
 const char* LatexFileName  = "latex.tex";
-const double EPS           = 1e-5;
 
 enum Errors
 {
@@ -42,7 +44,7 @@ struct Node
     Type   type;
     OP     opValue;
     double numValue;
-    char*  varValue;
+    char*  varName;
     Node*  left;
     Node*  right;
 };
@@ -52,6 +54,12 @@ struct Tree
     Node*  root;
     size_t size;
     int    status;
+};
+
+struct Var 
+{
+    char* varName;
+    double varValue; 
 };
 
 Node* nodeCtor ();
