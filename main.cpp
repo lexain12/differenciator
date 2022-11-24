@@ -4,10 +4,13 @@
 #include <cstring>
 #include <cstddef>
 #include <math.h>
+#include <stdlib.h>
+#include <time.h>
 
 extern FILE* LOGFILEPTR;
 typedef char* Elem_t;
 #include "diff.h"
+
 
 Var VarTable[VarTableSize] = {};
 
@@ -596,8 +599,8 @@ int findInTree (Node* node, const char* dataToFind)
 #undef dumpprint
 
 #define createNum(NUM) createNode(Num_t, UnknownOp, NUM, nullptr, nullptr, nullptr)
-#define dL diff(node->left)
-#define dR diff(node->right)
+#define dL diff(node->left, varName)
+#define dR diff(node->right, varName)
 #define cL treeCpy(node->left)
 #define cR treeCpy(node->right)
 #define SUB(left, right) createNode(OP_t, OP_SUB, 0, nullptr, left, right)
@@ -610,7 +613,7 @@ int findInTree (Node* node, const char* dataToFind)
 #define LOG(left, right) createNode(OP_t, OP_LOG, 0, nullptr, left, right)
 #define LN(right) createNode(       OP_t, OP_LN,  0, nullptr, nullptr, right)
 
-Node* diff (const Node* node)
+Node* diff (const Node* node, char* varName)
 {
     assert (node != nullptr);
 
@@ -650,15 +653,15 @@ Node* diff (const Node* node)
                     return DIV (SUB (MUL (dL, cR), MUL (cL, dR)), MUL (cR, cR));
 
                 case OP_POW:
-                    if (findInTree (node->right, "x") && findInTree(node->left, "x"))
+                    if (findInTree (node->right, varName) && findInTree(node->left, varName))
                     {
-                        return MUL (POW (cL, cR), diff (MUL (LN (cL), cR)));
+                        return MUL (POW (cL, cR), diff (MUL (LN (cL), cR), varName));
                     }
-                    else if (findInTree (node->right, "x"))
+                    else if (findInTree (node->right, varName))
                     {
                         return MUL (LN (cL), MUL (POW (cL, cR), dR));
                     }
-                    else if (findInTree (node->left, "x"))
+                    else if (findInTree (node->left, varName))
                     {
                         return MUL (MUL (dL, cR), POW (cL, SUB (cR, createNum(1))));
                     }
@@ -961,17 +964,18 @@ void insertVar (Node* node)
     return;
 }
 
-void fillTable ()
+void fillTable (Var* table, size_t size)
 {
-    for (size_t index = 0; index < VarTableSize; ++index)
+    for (size_t index = 0; index < size; ++index)
     {
-        if (VarTable[index].varName != nullptr )
+        if (table[index].varName != nullptr )
         {
             double varValue = 0;
-            printf ("Enter value of this var: %s\n", VarTable[index].varName);
+            printf ("Enter value of this var: %s\n", table[index].varName);
+            fflush (stdin);
             scanf ("%lg", &varValue);
 
-            VarTable[index].varValue = varValue;
+            table[index].varValue = varValue;
         }
     }
 }
@@ -985,28 +989,12 @@ Node* countFunction (Node* node)
 
 Node* countFunctionInPoint (Node* node)
 {
-    fillTable ();
+    fillTable (VarTable, VarTableSize);
     countFunction (node);
 
     return optimizeTree (node);
 }
 
-#define laprint(...) fprintf (fileToPrint, __VA_ARGS__)
-void latexBegin (FILE* fileToPrint)
-{
-    laprint ("\\documentclass{article}\n");
-    laprint ("\\usepackage[utf8]{inputenc}\n");
-    laprint ("\\title{11}\n");
-    laprint ("\\author{Витя Тяжелков}\n");
-    laprint ("\\date{November 2022}\n");
-    laprint ("\\usepackage[russian]{babel}\n");
-    laprint ("\\begin{document}\n");
-}
-
-void latexEnd (FILE* fileToPrint)
-{
-    laprint ("\\end{document}\n");
-}
 
 void latexCompile ()
 {
@@ -1016,9 +1004,8 @@ void latexCompile ()
     sprintf (cmd, "open latex.pdf");
     system (cmd);
 }
-#undef laprint
 
-Node* countDerivative (Node* initialNode, size_t order)
+Node* countDerivative (Node* initialNode, size_t order, char* varName)
 {
     Node* tmpNode = nodeCtor ();
     Node* rtnNode = treeCpy (initialNode);
@@ -1027,14 +1014,14 @@ Node* countDerivative (Node* initialNode, size_t order)
         return rtnNode;
     else
     {
-        rtnNode = diff (initialNode);
+        rtnNode = diff (initialNode, varName);
         rtnNode = optimizeTree (rtnNode);
         tmpNode = rtnNode;
     }
 
     for (size_t index = 1; index < order; ++index)
     {
-        rtnNode = diff (tmpNode);
+        rtnNode = diff (tmpNode, varName);
         rtnNode = optimizeTree (rtnNode);
         tmpNode = rtnNode;
     }
@@ -1058,17 +1045,17 @@ int factorial (int num)
     return rtn;
 }
 
-void McLaurenSeries (Node* function, size_t order, FILE* fileToPrint)
+void McLaurenSeries (Node* function, size_t order, char* varName, FILE* fileToPrint)
 {
     printf ("McLauren series:\n");
-    fillTable ();
+    fillTable (VarTable, VarTableSize);
 
     fprintf (fileToPrint, "$");
 
     for (size_t index = 0; index <= order; ++index)
     {
         fprintf (fileToPrint, "x^{%d} \\cdot \\frac{", index);
-        treePrint (countFunction (countDerivative (function, index)), 0, fileToPrint);
+        treePrint (countFunction (countDerivative (function, index, varName)), 0, fileToPrint);
         fprintf (fileToPrint, "}{");
         fprintf (fileToPrint, "%d} + ", factorial (index));
     }
@@ -1104,30 +1091,120 @@ void changeVarTable (char* varName, double varValue)
     }
 }
 
-void drawPlot (int minX, int maxX, Node* function, char* fileName)
+void drawPlot (double minX, double maxX, Node* function, char* varName, char* fileName)
 {
     FILE* fileptr = fopen (fileName, "w");
     assert (fileptr != nullptr);
 
-    fillTable ();
+    fillTable (VarTable, VarTableSize);
     Node* tmpNode = nodeCtor ();
 
-   for (int index = minX; index < maxX; ++index)
+   for (double index = minX; index <= maxX;)
    {
        tmpNode = treeCpy (function);
-       changeVarTable ("x", index); 
+       changeVarTable (varName, index); 
 
        tmpNode = countFunction (tmpNode);
        
-       fprintf (fileptr, "%d %lf\n", index, tmpNode->numValue);
+       fprintf (fileptr, "%lf %lf\n", index, tmpNode->numValue);
+
+       index += 1e-1;
    }
+
+   fclose (fileptr);
+   system ("python3 main.py");
 }
+
+void fullError (Node* function)
+{
+    double fullError         = 0;
+    double partialDerivative = 0;
+    double valError          = 0;
+
+    Var errorTable[VarTableSize] = {};
+
+    fillTable (VarTable, VarTableSize);
+
+    for (size_t index = 0; index < VarTableSize; ++index)
+    {
+        errorTable[index].varName = VarTable[index].varName;
+    }
+
+    printf ("Enter error for next vars:\n");
+    fillTable (errorTable, VarTableSize);
+
+    for (size_t index = 0; index < VarTableSize; ++index)
+    {
+        if (VarTable[index].varName == nullptr) break;
+
+        valError = errorTable[index].varValue;
+        valError = valError * valError;
+
+        partialDerivative = countFunction ( countDerivative (function, 1, VarTable[index].varName))->numValue;
+        partialDerivative *= partialDerivative;
+
+        fullError += partialDerivative * valError;
+        printf ("%lf\n", valError);
+    }
+    printf ("fullError %lf\n", fullError);
+}
+#define laprint(...) fprintf (fileToPrint, __VA_ARGS__)
+void latexBegin (FILE* fileToPrint)
+{
+    laprint ("\\documentclass{article}\n");
+    laprint ("\\usepackage[utf8]{inputenc}\n");
+    laprint ("\\title{11}\n");
+    laprint ("\\author{Витя Тяжелков}\n");
+    laprint ("\\date{November 2022}\n");
+    laprint ("\\usepackage[russian]{babel}\n");
+    laprint ("\\begin{document}\n");
+    laprint ("Одним из основных понятий , изучаемых в курсе математического анализа, является понятие производной. Оно возникает в школьном курсе элементарной албебры. Короче я устал писать, го к делу. Кстати, так как это очень нужное пособие и его прочтет миллионы людей, то здесь могла бы быть ваша реклама.\n\n");
+    laprint ("На самом деле понятие производной это очень легко, просто дифференцируем функцию и все, у нас есть производная. Давайте разберем это понятие на примере следующей функции:\n\n");
+}
+
+void latexEnd (FILE* fileToPrint)
+{
+    laprint ("\\end{document}\n");
+}
+
+void latexDerivative (Node* function, size_t order, FILE* fileToPrint)
+{
+    if (order >= 1)
+    {
+        laprint ("Давайте посчитаем первую производную:\n\n");
+        laprint ("$");
+
+        laprint ("(");
+        treePrint (function, 0, fileToPrint);
+        laprint (")^{(1)} = ");
+        treePrint (countDerivative (function, 1, "x"), 0, fileToPrint);
+        laprint ("$\n\n");
+    }
+
+    for (size_t index = 2; index <= order; ++index)
+    {
+        laprint (fillers[rand()%numOfFillers]);
+        laprint ("\n\n");
+        laprint ("$");
+        laprint ("(");
+        treePrint (function, 0, fileToPrint);
+        laprint (")^{(%lu)} = ", index);
+
+        treePrint (countDerivative (function, index, "x"), 0, fileToPrint);
+        laprint ("$\n\n");
+    }
+     
+}
+
+void latexMcLauren ()
+{
+}
+#undef laprint
 
 int main ()
 {
+    srand (time (NULL));
     varTablePoison();
-    changeVarTable ("x", 4); 
-    tableDump ();
 
     Tree tree = {};
     treeCtor (&tree);
@@ -1143,31 +1220,34 @@ int main ()
     size_t numberOfDiff = 0;
     scanf ("%lu", &numberOfDiff);
 
-    tree1.root = countDerivative (tree.root, numberOfDiff);
-
-    treeDump (&tree1, "adsf\n");
+    tree1.root = countDerivative (tree.root, numberOfDiff, "x");
 
     fclose (DBFileptr);
-    treeDump (&tree, "ehe\n");
-    drawPlot (-4, 6, tree.root, "plot.txt");
+
+    fullError (tree.root);
+
+    drawPlot (-5, 5, tree.root, "x", "plot.txt");
 
     FILE* overleaf = fopen (LatexFileName, "w");
     latexBegin (overleaf);
+    fprintf (overleaf, "$f(x) = ");
+    treePrint (tree.root, 0, overleaf);
+    fprintf (overleaf, "$\n\n");
     assert (overleaf != nullptr);
 
-    treeDump (&tree, "ehe\n");
-    McLaurenSeries (tree.root, numberOfDiff, overleaf);
+    McLaurenSeries (tree.root, numberOfDiff, "e", overleaf);
 
     fprintf (overleaf, "$");
     treePrint (tree1.root, 0, overleaf);
     fprintf (overleaf, "$\n\n очевидно, что это равняется: \n\n");
 
-    fillTable ();
+    fillTable (VarTable, VarTableSize);
     tree1.root = countFunction (tree1.root);
 
     fprintf (overleaf, "$");
     treePrint (tree1.root, 0, overleaf);
-    fprintf (overleaf, "$\n");
+    fprintf (overleaf, "$\n\n");
+    latexDerivative (tree.root, numberOfDiff, overleaf);
 
     latexEnd (overleaf);
     fclose (overleaf);

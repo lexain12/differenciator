@@ -11,6 +11,18 @@ const double VarPoison     = 10e7;
 const size_t VarTableSize  = 10;
 const char* LatexFileName  = "latex.tex";
 
+const size_t numOfFillers = 6;
+#define RAND_MAX numOfFillers
+const char* fillers[] = 
+{
+    "Нетрудно догадаться, что:",
+    "Легко видеть, что в примере:",
+    "Как известно, производная этой функции равняется:",
+    "Поэтому:",
+    "Заметим, что:",
+    "Доказать, что это верно, оставим как домашнее задание интересующемуся читателю:"
+};
+
 enum Errors
 {
     noErrors     = 0,
