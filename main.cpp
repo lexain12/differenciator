@@ -11,7 +11,6 @@ extern FILE* LOGFILEPTR;
 typedef char* Elem_t;
 #include "diff.h"
 #include "functions.h"
-#include "Analyzator/main.h"
 
 const char   GraphFile[20] = "GraphFile.txt";
 const size_t MAXDATASIZE   = 10;
@@ -1290,7 +1289,6 @@ int main ()
         treeDump (&tree, "HEY\n");
     }
 
-    return 0;
     tree.root = treeParse (tree.root, DBFileptr);
     tree.root = tree.root->left;
 
@@ -1301,7 +1299,7 @@ int main ()
     size_t numberOfDiff = 0;
     scanf ("%lu", &numberOfDiff);
 
-    //tree1.root = getG ((const char**) &(inputFile.arrayOfLines[0].charArray));
+    tree1.root = getG (&tokenArray);
     fprintf (stderr, "hello\n");
     treeDump (&tree1, "Hello\n");
     return 0;

@@ -95,13 +95,13 @@ Node* treeParse        (Node* node,       FILE* DBFileptr);
 void latexBegin        (FILE* fileToPrint);
 void latexEnd          (FILE* fileToPrint);
 
-//Node* getN (const char** str);
-//Node* getP (const char** str);
-//Node* getG (const char** str);
-//Node* getE (const char** str);
-//Node* getT (const char** str);
-//Node* getPW (const char** str);
-//Node* getUnOP (const char** str);
+Node* getN (Node*** tokenArray);
+Node* getP (Node*** tokenArray);
+Node* getG (Node*** tokenArray);
+Node* getE (Node*** tokenArray);
+Node* getT (Node*** tokenArray);
+Node* getPW (Node*** tokenArray);
+Node* getUnOP (Node*** tokenArray);
 int strEqual(const char *l, const char *r);
 
 void getOpOrVarToken (Node*** tokenArray, char** string);
