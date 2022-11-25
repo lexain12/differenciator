@@ -10,7 +10,35 @@
 extern FILE* LOGFILEPTR;
 typedef char* Elem_t;
 #include "diff.h"
+#include "functions.h"
+#include "Analyzator/main.h"
 
+const char   GraphFile[20] = "GraphFile.txt";
+const size_t MAXDATASIZE   = 10;
+const size_t MAXCMDSIZE    = 100;
+const char SPEAKFILE[40]   = "speakFile.txt";
+const char* ShortCMD       = "+-k*/^csln()";
+const double EPS           = 10e-7;
+const double VarPoison     = 10e7;
+
+const size_t VarTableSize  = 10;
+const char* LatexFileName  = "latex.tex";
+
+const size_t numOfFillers = 6;
+
+const char* fillers[] = 
+{
+    "А теперь давайте посмеемся над этим крутым мемом:",
+    "Реал жиза:",
+    "Вот этот мем мне очень понравился",
+    "А вот еще один норм мем",
+    "Нетрудно догадаться, что:",
+    "Легко видеть, что в примере:",
+    "Как известно, производная этой функции равняется:",
+    "Поэтому:",
+    "Заметим, что:",
+    "Доказать, что это верно, оставим как домашнее задание интересующемуся читателю:"
+};
 
 Var VarTable[VarTableSize] = {};
 
@@ -627,7 +655,11 @@ Node* diff (const Node* node, char* varName)
 
         case Var_t:
             {
-            return createNum (1);
+                if (strcmp (varName, node->varName) == 0)
+                    return createNum (1);
+                else 
+                    return createNum (0);
+
             break;
             }
 
@@ -1045,24 +1077,6 @@ int factorial (int num)
     return rtn;
 }
 
-void McLaurenSeries (Node* function, size_t order, char* varName, FILE* fileToPrint)
-{
-    printf ("McLauren series:\n");
-    fillTable (VarTable, VarTableSize);
-
-    fprintf (fileToPrint, "$");
-
-    for (size_t index = 0; index <= order; ++index)
-    {
-        fprintf (fileToPrint, "x^{%d} \\cdot \\frac{", index);
-        treePrint (countFunction (countDerivative (function, index, varName)), 0, fileToPrint);
-        fprintf (fileToPrint, "}{");
-        fprintf (fileToPrint, "%d} + ", factorial (index));
-    }
-
-    fprintf (fileToPrint, "o(x^{%d})", order);
-    fprintf (fileToPrint, "$\n\n");
-}
 
 void tableDump ()
 {
@@ -1153,6 +1167,7 @@ void latexBegin (FILE* fileToPrint)
 {
     laprint ("\\documentclass{article}\n");
     laprint ("\\usepackage[utf8]{inputenc}\n");
+    laprint ("\\usepackage{graphicx}\n");
     laprint ("\\title{11}\n");
     laprint ("\\author{Витя Тяжелков}\n");
     laprint ("\\date{November 2022}\n");
@@ -1162,6 +1177,37 @@ void latexBegin (FILE* fileToPrint)
     laprint ("На самом деле понятие производной это очень легко, просто дифференцируем функцию и все, у нас есть производная. Давайте разберем это понятие на примере следующей функции:\n\n");
 }
 
+void McLaurenSeries (Node* function, size_t order, char* varName, FILE* fileToPrint)
+{
+    fprintf (fileToPrint, "McLaurenSeries for this function:\n\n");
+    changeVarTable (varName, 0);
+    tableDump ();
+
+    fprintf (fileToPrint, "$");
+    for (size_t index = 0; index <= order; ++index)
+    {
+        fprintf (fileToPrint, "x^{%d} \\cdot \\frac{", index);
+        treePrint (countFunction (countDerivative (function, index, varName)), 0, fileToPrint);
+        fprintf (fileToPrint, "}{");
+        fprintf (fileToPrint, "%d} + ", factorial (index));
+    }
+
+    fprintf (fileToPrint, "o(x^{%d})", order);
+    fprintf (fileToPrint, "$\n\n");
+
+    laprint("\\begin{figure}[h]\n\n");
+
+    laprint("\\centering\n\n");
+
+    laprint ("\\includegraphics[width=0.8\\linewidth]{graph.png}\n\n");
+
+    laprint ("\\caption{График функции}\n\n");
+
+    laprint ("\\label{fig:mpr}\n\n");
+
+    laprint ("\\end{figure}\n\n");
+}
+
 void latexEnd (FILE* fileToPrint)
 {
     laprint ("\\end{document}\n");
@@ -1169,6 +1215,8 @@ void latexEnd (FILE* fileToPrint)
 
 void latexDerivative (Node* function, size_t order, FILE* fileToPrint)
 {
+    int number = 0;
+
     if (order >= 1)
     {
         laprint ("Давайте посчитаем первую производную:\n\n");
@@ -1183,7 +1231,26 @@ void latexDerivative (Node* function, size_t order, FILE* fileToPrint)
 
     for (size_t index = 2; index <= order; ++index)
     {
-        laprint (fillers[rand()%numOfFillers]);
+        number = rand()%numOfFillers;
+
+        if (number <= 3)
+        {
+            laprint (fillers[number]);
+
+            laprint("\\begin{figure}[h]\n\n");
+
+            laprint("\\centering\n\n");
+
+            laprint ("\\includegraphics[width=0.2\\linewidth]{meme%d.jpeg}\n\n", number);
+
+            laprint ("\\end{figure}\n\n");
+            
+            laprint ("АХАХАХАХА, смешно, а вот уже продиффернцировал:\n\n");
+        }
+        else
+        {
+            laprint (fillers[number]);
+        }
         laprint ("\n\n");
         laprint ("$");
         laprint ("(");
@@ -1196,9 +1263,6 @@ void latexDerivative (Node* function, size_t order, FILE* fileToPrint)
      
 }
 
-void latexMcLauren ()
-{
-}
 #undef laprint
 
 int main ()
@@ -1209,7 +1273,24 @@ int main ()
     Tree tree = {};
     treeCtor (&tree);
 
+    InputFile inputFile = {"DBFile.txt"}; 
+
     FILE* DBFileptr = fopen ("DBFile.txt", "r");
+    readFileToLinesStruct (DBFileptr, &inputFile);
+
+    printf ("%s", inputFile.arrayOfLines[0].charArray);
+
+    Node** tokenArray = (Node**) calloc (inputFile.arrayOfLines[0].length, sizeof(*tokenArray));
+
+    getTokens (tokenArray, inputFile.arrayOfLines[0].charArray);
+
+    for (int index = 0; tokenArray[index]->type != Unknown; ++index)
+    {
+        tree.root = tokenArray[index];
+        treeDump (&tree, "HEY\n");
+    }
+
+    return 0;
     tree.root = treeParse (tree.root, DBFileptr);
     tree.root = tree.root->left;
 
@@ -1219,6 +1300,11 @@ int main ()
     printf ("Enter n for differnce the func n times\n");
     size_t numberOfDiff = 0;
     scanf ("%lu", &numberOfDiff);
+
+    //tree1.root = getG ((const char**) &(inputFile.arrayOfLines[0].charArray));
+    fprintf (stderr, "hello\n");
+    treeDump (&tree1, "Hello\n");
+    return 0;
 
     tree1.root = countDerivative (tree.root, numberOfDiff, "x");
 
@@ -1235,7 +1321,6 @@ int main ()
     fprintf (overleaf, "$\n\n");
     assert (overleaf != nullptr);
 
-    McLaurenSeries (tree.root, numberOfDiff, "e", overleaf);
 
     fprintf (overleaf, "$");
     treePrint (tree1.root, 0, overleaf);
@@ -1247,7 +1332,13 @@ int main ()
     fprintf (overleaf, "$");
     treePrint (tree1.root, 0, overleaf);
     fprintf (overleaf, "$\n\n");
+
     latexDerivative (tree.root, numberOfDiff, overleaf);
+
+    McLaurenSeries (tree.root, numberOfDiff, "x", overleaf);
+
+    fprintf (overleaf, "\n\n");
+    
 
     latexEnd (overleaf);
     fclose (overleaf);

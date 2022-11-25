@@ -6,14 +6,20 @@ CLANGSTZ = clang++ -std=c++17 -fsanitize=address,undefined,bool,bounds,enum,floa
 
 all: main
 
-main: main.o loglib.o 
-	$(CXX) bin/main.o bin/Loglib.o -o diff
+main: main.o loglib.o onegin.o analyze.o
+	$(CXX) bin/main.o bin/Loglib.o bin/onegin.o bin/analyze.o -o diff
 
 main.o: main.cpp
 	$(CXX) $(CXXFLAGS) main.cpp -c -o bin/main.o 
 
 loglib.o: Loglib.cpp
 	$(CXX) $(CXXFLAGS) Loglib.cpp -c -o bin/Loglib.o
+
+onegin.o: functions.cpp
+	$(CXX) $(CXXFLAGS) functions.cpp -c -o bin/onegin.o
+
+analyze.o: Analyzator/main.cpp
+	$(CXX) $(CXXFLAGS) Analyzator/main.cpp -c -o bin/analyze.o
 
 sanitize: 
 	$(CLANGSTZ) main.cpp Loglib.cpp -o diff

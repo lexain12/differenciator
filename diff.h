@@ -1,27 +1,20 @@
+#pragma once
 #include <stdlib.h>
 
-const char   GraphFile[20] = "GraphFile.txt";
-const size_t MAXDATASIZE   = 10;
-const size_t MAXCMDSIZE    = 100;
-const char SPEAKFILE[40]   = "speakFile.txt";
-const char* ShortCMD       = "+-k*/^csln";
-const double EPS           = 10e-7;
-const double VarPoison     = 10e7;
+extern const char   GraphFile[20];
+extern const size_t MAXDATASIZE;
+extern const size_t MAXCMDSIZE;
+extern const char SPEAKFILE[40];
+extern const char* ShortCMD;
+extern const double EPS;
+extern const double VarPoison;
 
-const size_t VarTableSize  = 10;
-const char* LatexFileName  = "latex.tex";
+extern const size_t VarTableSize;
+extern const char* LatexFileName;
 
-const size_t numOfFillers = 6;
+extern const size_t numOfFillers;
 #define RAND_MAX numOfFillers
-const char* fillers[] = 
-{
-    "Нетрудно догадаться, что:",
-    "Легко видеть, что в примере:",
-    "Как известно, производная этой функции равняется:",
-    "Поэтому:",
-    "Заметим, что:",
-    "Доказать, что это верно, оставим как домашнее задание интересующемуся читателю:"
-};
+extern const char* fillers[];
 
 enum Errors
 {
@@ -41,6 +34,8 @@ enum OP
     OP_SIN    = 8,
     OP_LOG    = 9,
     OP_LN     = 10,
+    OP_LBR    = 11,
+    OP_RBR    = 12,
 };
 
 enum Type
@@ -91,6 +86,8 @@ Node* treeCpy          (const Node* node);
 Node* diff             (const Node* node);
 
 void  treeDump         (Tree* tree,       const char* str, ...);
+void changeVarTable (char* varName, double varValue);
+void tableDump ();
 
 int   findInTree       (Node* node,       const char* dataToFind);
 void  treePrint        (const Node* node);
@@ -98,3 +95,16 @@ Node* treeParse        (Node* node,       FILE* DBFileptr);
 void latexBegin        (FILE* fileToPrint);
 void latexEnd          (FILE* fileToPrint);
 
+//Node* getN (const char** str);
+//Node* getP (const char** str);
+//Node* getG (const char** str);
+//Node* getE (const char** str);
+//Node* getT (const char** str);
+//Node* getPW (const char** str);
+//Node* getUnOP (const char** str);
+int strEqual(const char *l, const char *r);
+
+void getOpOrVarToken (Node*** tokenArray, char** string);
+void getTokens (Node** tokenArray, char* string);
+void getBOpToken (Node*** tokenArray, char** string);
+void skipSpaces (char** string);

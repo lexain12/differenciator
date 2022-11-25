@@ -18,5 +18,5 @@ xaxis = np.array(xArray)
 yaxis = np.array(yArray)
 
 plt.plot(xaxis, yaxis)
-plt.show()
+plt.savefig ("graph.png")
 
